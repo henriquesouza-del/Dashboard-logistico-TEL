@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Dashboard Logístico - NF's e Controle</title>
+<style>
+body{font-family:Segoe UI,Arial;margin:0;background:#f5f7fa;color:#333}
+header{background:#1a73e8;color:#fff;padding:16px;font-size:20px;font-weight:600;position:sticky;top:0}
+.tabs{display:flex;background:#fff;border-bottom:2px solid #ddd;position:sticky;top:60px}
+.tab{padding:12px 24px;cursor:pointer;border:none;background:0;font-size:15px}
+.tab.active{border-bottom:3px solid #1a73e8;color:#1a73e8;font-weight:600}
+.container{padding:20px;max-width:1400px;margin:auto}
+.card{background:#fff;padding:16px;border-radius:8px;box-shadow:0 1px 3px rgba(0,0,0,.1);margin-bottom:16px}
+.filters{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:16px}
+input{padding:8px 12px;border:1px solid #ccc;border-radius:6px;font-size:14px;min-width:180px}
+table{width:100%;border-collapse:collapse;background:#fff;border-radius:8px;overflow:hidden;font-size:13px}
+th{background:#1a73e8;color:#fff;padding:12px;text-align:left;position:sticky;top:0}
+td{padding:10px;border-bottom:1px solid #eee}
+tr:hover{background:#f8f9fa}
+.kpi{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px}
+.kpi.ctrl{display:grid;grid-template-columns:repeat(3,1fr)}
+.kpi div{background:#fff;padding:16px;border-radius:8px;text-align:center;box-shadow:0 1px 3px rgba(0,0,0,.1)}
+.kpi small{color:#666;font-size:12px}
+.kpi b{font-size:26px;color:#1a73e8;display:block;margin-top:4px}
+.kpi b.ok{color:#2e7d32}
+.kpi b.nok{color:#c62828}
+.evidencia a{color:#1a73e8;text-decoration:none;font-weight:500}
+.status-ok{color:#2e7d32;font-weight:600}
+.status-nok{color:#c62828;font-weight:600}
+.loading{text-align:center;padding:40px;color:#666}
+.error{background:#ffebee;color:#c62828;padding:12px;border-radius:6px;margin-bottom:16px}
+.hidden{display:none}
+</style>
+</head>
+<body>
+<header>Dashboard Logístico - NF's e Controle de Lotes</header>
+
+<div class="tabs">
+  <button class="tab active" onclick="showTab(0)">NF's</button>
+  <button class="tab" onclick="showTab(1)">Controle de Lotes</button>
+</div>
+
+<div class="container">
+  <div id="erro" class="error hidden"></div>
+  <div id="loading" class="loading">Carregando dados dos links...</div>
+
+  <!-- ABA NF'S -->
+  <div id="tab0" class="hidden">
+    <div id="kpiNF" class="kpi hidden">
+      <div><small>Total NF's</small><b id="kpiTotal">0</b></div>
+      <div><small>Pendentes</small><b id="kpiPend">0</b></div>
+      <div><small>Aprovadas</small><b id="kpiAprov">0</b></div>
+    </div>
+    <div class="card">
+      <div class="filters">
+        <input type="text" id="buscaNF" placeholder="Buscar em todas colunas...">
+      </div>
+      <div style="overflow:auto;max-height:70vh">
+        <table id="tabelaNF"></table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ABA CONTROLE -->
+  <div id="tab1" class="hidden">
+    <div id="kpiCtrl" class="kpi ctrl hidden">
+      <div><small>Total Lotes</small><b id="kpiLotes">0</b></div>
+      <div><small>Lotes OK</small><b id="kpiOk" class="ok">0</b></div>
+      <div><small>Lotes NOK</small><b id="kpiNok" class="nok">0</b></div>
+    </div>
+    <div class="card">
+      <div class="filters">
+        <input type="text" id="buscaLote" placeholder="Buscar lote/produto...">
+      </div>
+      <div style="overflow:auto;max-height:70vh">
+        <table id="tabelaCtrl"></table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const URL_NF = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSCnoIYNnkZaxPPDyPHeYsSTvIxuLgiY615owuPEk9JQIP47RMbxfNUqZe2dPUVnpv68Rk6HYnm_xcW/pub?gid=827550886&single=true&output=csv';
+const URL_CTRL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSCnoIYNnkZaxPPDyPHeYsSTvIxuLgiY615owuPEk9JQIP47RMbxfNUqZe2dPUVnpv68Rk6HYnm_xcW/pub?gid=45924650&single=true&output=csv';
+
+let dataNF=[], dataCtrl=[], colsNF=[], colsCtrl=[];
+
+function showTab(n){
+  document.querySelectorAll('.tab').forEach((t,i)=>t.classList.toggle('active',i==n));
+  document.getElementById('tab0').classList.toggle('hidden',n!=0);
+  document.getElementById('tab1').classList.toggle('hidden',n!=1);
+}
+
+async function carregarCSV(url){
+  const resp = await fetch(url);
+  if(!resp.ok) throw new Error('Erro ao buscar dados');
+  const text = await resp.text();
+  const linhas = text.split(/\r?\n/).filter(l=>l.trim());
+  const header = linhas[0].split(',').map(h=>h.trim().replace(/"/g,''));
+  const dados = linhas.slice(1).map(l=>{
+    const vals = l.split(/,(?=(?:[^\"]*\"[^\"]*\")*[^\"]*$)/).map(v=>v.trim().replace(/"/g,''));
+    let obj={}; header.forEach((h,i)=>obj[h]=vals[i]||'');
+    return obj;
+  }).filter(d=>Object.values(d).some(v=>v));
+  return {header, dados};
+}
+
+function num(valor){
+  if(!valor) return 0;
+  return parseFloat(valor.toString().replace(/[^\d.,-]/g,'').replace('.','').replace(',','.')) || 0;
+}
+
+function reordenarColsNF(cols){
+  const statusCol = cols.find(c=>c.toLowerCase().includes('status'));
+  const nfCol = cols.find(c=>c.toLowerCase().includes('nf') &&!c.toLowerCase().includes('status'));
+  const romaneioCol = cols.find(c=>c.toLowerCase().includes('romaneio'));
+  const resto = cols.filter(c=>c!=statusCol && c!=nfCol && c!=romaneioCol);
+  return [statusCol, nfCol, romaneioCol,...resto].filter(Boolean);
+}
+
+function renderNF(){
+  const statusCol = colsNF.find(c=>c.toLowerCase().includes('status'));
+  const evidCol = colsNF.find(c=>c.toLowerCase().includes('evidencia'));
+  const colsOrdenadas = reordenarColsNF(colsNF);
+
+  const filtrado = dataNF.filter(d=>{
+    const txt = buscaNF.value.toLowerCase();
+    return txt=='' || JSON.stringify(d).toLowerCase().includes(txt);
+  });
+
+  kpiNF.classList.remove('hidden');
+  kpiTotal.textContent = filtrado.length;
+  kpiPend.textContent = filtrado.filter(d=>d[statusCol]?.toLowerCase().includes('pend')).length;
+  kpiAprov.textContent = filtrado.filter(d=>d[statusCol]?.toLowerCase().includes('aprov')).length;
+
+  tabelaNF.innerHTML = '<tr>'+colsOrdenadas.map(c=>`<th>${c}</th>`).join('')+'</tr>' +
+    filtrado.map(r=>'<tr>'+colsOrdenadas.map(c=>{
+      if(c==evidCol && r[c] && r[c].startsWith('http'))
+        return `<td class="evidencia"><a href="${r[c]}" target="_blank">Ver</a></td>`;
+      return `<td>${r[c]||''}</td>`;
+    }).join('')+'</tr>').join('');
+}
+
+function renderCtrl(){
+  const loteCol = colsCtrl.find(c=>c.toLowerCase().includes('lote'));
+  const qtdCol = colsCtrl.find(c=>c.toLowerCase().includes('qtd'));
+  const sgmCol = colsCtrl.find(c=>c.toLowerCase().includes('sgm'));
+  const sapCol = colsCtrl.find(c=>c.toLowerCase().includes('sap'));
+
+  const grupos = {};
+  dataCtrl.forEach(r=>{
+    const lote = r[loteCol];
+    if(!lote) return;
+    if(!grupos[lote]) grupos[lote] = {Lote:lote, QTD:0, SGM:[], SAP:[]};
+    grupos[lote].QTD += num(r[qtdCol]);
+    if(num(r[sgmCol])) grupos[lote].SGM.push(num(r[sgmCol]));
+    if(num(r[sapCol])) grupos[lote].SAP.push(num(r[sapCol]));
+  });
+
+  const res = Object.values(grupos).filter(g=>{
+    return buscaLote.value=='' || g.Lote.toLowerCase().includes(buscaLote.value.toLowerCase());
+  }).map(g=>{
+    const mediaSGM = g.SGM.length? (g.SGM.reduce((a,b)=>a+b,0)/g.SGM.length) : 0;
+    const mediaSAP = g.SAP.length? (g.SAP.reduce((a,b)=>a+b,0)/g.SAP.length) : 0;
+    const diff = mediaSGM - mediaSAP;
+    return {
+      Lote: g.Lote,
+      'QTD Total': g.QTD.toLocaleString('pt-BR'),
+      'Saldo SGM': mediaSGM.toFixed(2),
+      'Saldo SAP': mediaSAP.toFixed(2),
+      'Status LOTE': diff==0? 'OK' : 'NOK',
+      _status: diff==0? 'OK' : 'NOK'
+    };
+  });
+
+  kpiCtrl.classList.remove('hidden');
+  kpiLotes.textContent = res.length;
+  kpiOk.textContent = res.filter(r=>r._status=='OK').length;
+  kpiNok.textContent = res.filter(r=>r._status=='NOK').length;
+
+  tabelaCtrl.innerHTML = '<tr>'+['Lote','QTD Total','Saldo SGM','Saldo SAP','Status LOTE'].map(c=>`<th>${c}</th>`).join('')+'</tr>' +
+    res.map(r=>`<tr>
+      <td>${r.Lote}</td>
+      <td>${r['QTD Total']}</td>
+      <td>${r['Saldo SGM']}</td>
+      <td>${r['Saldo SAP']}</td>
+      <td class="${r._status=='OK'?'status-ok':'status-nok'}">${r._status}</td>
+    </tr>`).join('');
+}
+
+buscaNF.oninput = renderNF;
+buscaLote.oninput = renderCtrl;
+
+async function init(){
+  try{
+    const [nf, ctrl] = await Promise.all([carregarCSV(URL_NF), carregarCSV(URL_CTRL)]);
+    colsNF = nf.header; dataNF = nf.dados;
+    colsCtrl = ctrl.header; dataCtrl = ctrl.dados;
+
+    loading.classList.add('hidden');
+    renderNF();
+    renderCtrl();
+  }catch(e){
+    loading.classList.add('hidden');
+    erro.classList.remove('hidden');
+    erro.textContent = 'Erro ao carregar dados. Verifique se os links CSV estão públicos. ' + e.message;
+  }
+}
+
+init();
+</script>
+</body>
+</html>
