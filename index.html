@@ -375,6 +375,13 @@
             return -1;
         }
 
+        function findTipoColumn(headers) {
+            for (let i = 0; i < headers.length; i++) {
+                if (headers[i].toLowerCase().includes('tipo')) return i;
+            }
+            return -1;
+        }
+
         function countStatuses(rows, statusColIndex, type) {
             let okCount = 0;
             let nokCount = 0;
@@ -470,7 +477,19 @@
             if (data.length === 0) return;
 
             const headers = data[0];
-            const rows = data.slice(1);
+            let rows = data.slice(1);
+
+            // Para dashboard4, filtrar apenas linhas do tipo "VIVO" (excluir "Lote")
+            if (dashboardId === 'dashboard4') {
+                const tipoColIndex = findTipoColumn(headers);
+                if (tipoColIndex >= 0) {
+                    rows = rows.filter(row => {
+                        const tipoValue = (row[tipoColIndex] || '').toUpperCase().trim();
+                        return tipoValue.includes('VIVO');
+                    });
+                }
+            }
+
             dashboardData[dashboardId] = { headers, rows, filteredRows: rows };
 
             const num = dashboardId.replace('dashboard', '');
