@@ -389,12 +389,11 @@
             rows.forEach(row => {
                 if (statusColIndex >= 0 && statusColIndex < row.length) {
                     const value = row[statusColIndex].toUpperCase().trim();
-                    if (type === 'nf') {
-                        if (value === 'OK' || value === 'NF OK') okCount++;
-                        else if (value === 'NOK' || value === 'NF NOK') nokCount++;
-                    } else {
-                        if (value === 'OK' || value === 'ESTOQUE OK' || value.includes('OK')) okCount++;
-                        if (value === 'NOK' || value === 'ESTOQUE NOK' || value.includes('NOK')) nokCount++;
+                    // Sempre checa NOK primeiro (NOK contém "OK" como substring!)
+                    if (value.includes('NOK')) {
+                        nokCount++;
+                    } else if (value.includes('OK')) {
+                        okCount++;
                     }
                 }
             });
@@ -444,8 +443,8 @@
         function formatCell(value, colIndex, statusColIndex) {
             if (colIndex === statusColIndex) {
                 const upper = value.toUpperCase().trim();
-                if (upper.includes('OK') && !upper.includes('NOK')) return `<span class="status-ok">${value}</span>`;
-                else if (upper.includes('NOK')) return `<span class="status-nok">${value}</span>`;
+                if (upper.includes('NOK')) return `<span class="status-nok">${value}</span>`;
+                else if (upper.includes('OK')) return `<span class="status-ok">${value}</span>`;
             }
             return value;
         }
@@ -463,7 +462,7 @@
 
         function renderInfo(infoId, filteredCount, totalCount) {
             const info = document.getElementById(infoId);
-            info.textContent = `Exibindo <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mrow><mi>f</mi><mi>i</mi><mi>l</mi><mi>t</mi><mi>e</mi><mi>r</mi><mi>e</mi><mi>d</mi><mi>C</mi><mi>o</mi><mi>u</mi><mi>n</mi><mi>t</mi></mrow><mi>d</mi><mi>e</mi></mrow><annotation encoding="application/x-tex">{filteredCount} de </annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.8889em;vertical-align:-0.1944em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.10764em;">f</span><span class="mord mathnormal">i</span><span class="mord mathnormal">lt</span><span class="mord mathnormal">ere</span><span class="mord mathnormal">d</span><span class="mord mathnormal" style="margin-right:0.07153em;">C</span><span class="mord mathnormal">o</span><span class="mord mathnormal">u</span><span class="mord mathnormal">n</span><span class="mord mathnormal">t</span></span><span class="mord mathnormal">d</span><span class="mord mathnormal">e</span></span></span></span>{totalCount} registros`;
+            info.textContent = `Exibindo ${filteredCount} de ${totalCount} registros`;
         }
 
         function filterRows(rows, searchTerm) {
