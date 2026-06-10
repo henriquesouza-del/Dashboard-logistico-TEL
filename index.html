@@ -1,213 +1,555 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
+
 <head>
-<meta charset="UTF-8">
-<title>Dashboard Logístico - NF's e Controle</title>
-<style>
-body{font-family:Segoe UI,Arial;margin:0;background:#f5f7fa;color:#333}
-header{background:#1a73e8;color:#fff;padding:16px;font-size:20px;font-weight:600;position:sticky;top:0}
-.tabs{display:flex;background:#fff;border-bottom:2px solid #ddd;position:sticky;top:60px}
-.tab{padding:12px 24px;cursor:pointer;border:none;background:0;font-size:15px}
-.tab.active{border-bottom:3px solid #1a73e8;color:#1a73e8;font-weight:600}
-.container{padding:20px;max-width:1400px;margin:auto}
-.card{background:#fff;padding:16px;border-radius:8px;box-shadow:0 1px 3px rgba(0,0,0,.1);margin-bottom:16px}
-.filters{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:16px}
-input{padding:8px 12px;border:1px solid #ccc;border-radius:6px;font-size:14px;min-width:180px}
-table{width:100%;border-collapse:collapse;background:#fff;border-radius:8px;overflow:hidden;font-size:13px}
-th{background:#1a73e8;color:#fff;padding:12px;text-align:left;position:sticky;top:0}
-td{padding:10px;border-bottom:1px solid #eee}
-tr:hover{background:#f8f9fa}
-.kpi{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px}
-.kpi.ctrl{display:grid;grid-template-columns:repeat(3,1fr)}
-.kpi div{background:#fff;padding:16px;border-radius:8px;text-align:center;box-shadow:0 1px 3px rgba(0,0,0,.1)}
-.kpi small{color:#666;font-size:12px}
-.kpi b{font-size:26px;color:#1a73e8;display:block;margin-top:4px}
-.kpi b.ok{color:#2e7d32}
-.kpi b.nok{color:#c62828}
-.evidencia a{color:#1a73e8;text-decoration:none;font-weight:500}
-.status-ok{color:#2e7d32;font-weight:600}
-.status-nok{color:#c62828;font-weight:600}
-.loading{text-align:center;padding:40px;color:#666}
-.error{background:#ffebee;color:#c62828;padding:12px;border-radius:6px;margin-bottom:16px}
-.hidden{display:none}
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - Controle de Estoque</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --primary: #1e40af;
+            --primary-light: #3b82f6;
+            --primary-dark: #1e3a8a;
+            --success: #059669;
+            --success-light: #d1fae5;
+            --danger: #dc2626;
+            --danger-light: #fee2e2;
+            --info: #0891b2;
+            --info-light: #cffafe;
+            --bg-main: #f1f5f9;
+            --bg-card: #ffffff;
+            --text-primary: #1e293b;
+            --text-secondary: #64748b;
+            --border: #e2e8f0;
+            --shadow: 0 1px 3px rgba(0, 0, 0, 0.1), 0 1px 2px rgba(0, 0, 0, 0.06);
+            --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
+            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1);
+            --radius: 8px;
+            --radius-lg: 12px;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg-main);
+            color: var(--text-primary);
+            min-height: 100vh;
+        }
+
+        .app-container { display: flex; flex-direction: column; min-height: 100vh; }
+
+        .header {
+            background: linear-gradient(135deg, var(--primary-dark), var(--primary));
+            color: white;
+            padding: 16px 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: var(--shadow-md);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .header-left { display: flex; align-items: center; gap: 12px; }
+        .header-icon { font-size: 24px; opacity: 0.9; }
+        .header h1 { font-size: 20px; font-weight: 600; letter-spacing: -0.5px; }
+        .header-right { display: flex; align-items: center; gap: 16px; }
+
+        .last-update {
+            display: flex; align-items: center; gap: 8px;
+            font-size: 13px; opacity: 0.9;
+            background: rgba(255, 255, 255, 0.15);
+            padding: 6px 12px; border-radius: 20px;
+        }
+
+        .refresh-btn {
+            background: rgba(255, 255, 255, 0.2);
+            border: none; color: white;
+            width: 36px; height: 36px; border-radius: 50%;
+            cursor: pointer; display: flex;
+            align-items: center; justify-content: center;
+            transition: all 0.2s;
+        }
+
+        .refresh-btn:hover { background: rgba(255, 255, 255, 0.3); transform: rotate(180deg); }
+        .refresh-btn.spinning i { animation: spin 1s linear infinite; }
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
+        .tabs-nav {
+            background: var(--bg-card);
+            display: flex; padding: 0 24px;
+            border-bottom: 1px solid var(--border);
+            overflow-x: auto; box-shadow: var(--shadow);
+        }
+
+        .tab-btn {
+            display: flex; align-items: center; gap: 8px;
+            padding: 14px 20px; border: none; background: none;
+            color: var(--text-secondary); font-size: 14px; font-weight: 500;
+            cursor: pointer; border-bottom: 3px solid transparent;
+            transition: all 0.2s; white-space: nowrap; font-family: inherit;
+        }
+
+        .tab-btn:hover { color: var(--primary); background: rgba(59, 130, 246, 0.05); }
+        .tab-btn.active { color: var(--primary); border-bottom-color: var(--primary); background: rgba(59, 130, 246, 0.05); }
+        .tab-btn i { font-size: 16px; }
+
+        .main-content { flex: 1; padding: 24px; }
+        .dashboard-panel { display: none; }
+        .dashboard-panel.active { display: block; }
+        .panel-header { margin-bottom: 20px; }
+        .panel-header h2 { font-size: 22px; font-weight: 700; color: var(--text-primary); }
+
+        .summary-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px; margin-bottom: 20px;
+        }
+
+        .summary-card {
+            background: var(--bg-card); border-radius: var(--radius-lg);
+            padding: 20px; box-shadow: var(--shadow);
+            display: flex; align-items: center; gap: 16px;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .summary-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); }
+
+        .summary-card .card-icon {
+            width: 48px; height: 48px; border-radius: var(--radius);
+            display: flex; align-items: center; justify-content: center; font-size: 20px;
+        }
+
+        .summary-card.ok .card-icon { background: var(--success-light); color: var(--success); }
+        .summary-card.nok .card-icon { background: var(--danger-light); color: var(--danger); }
+        .summary-card.total .card-icon { background: var(--info-light); color: var(--info); }
+
+        .card-content { display: flex; flex-direction: column; }
+        .card-label { font-size: 12px; font-weight: 500; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; }
+        .card-value { font-size: 28px; font-weight: 700; color: var(--text-primary); line-height: 1.2; }
+
+        .filter-container { position: relative; margin-bottom: 16px; }
+        .filter-icon { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--text-secondary); font-size: 14px; }
+
+        .filter-input {
+            width: 100%; padding: 12px 16px 12px 40px;
+            border: 2px solid var(--border); border-radius: var(--radius);
+            font-size: 14px; font-family: inherit;
+            transition: border-color 0.2s, box-shadow 0.2s;
+            background: var(--bg-card);
+        }
+
+        .filter-input:focus { outline: none; border-color: var(--primary-light); box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1); }
+
+        .table-container {
+            background: var(--bg-card); border-radius: var(--radius-lg);
+            box-shadow: var(--shadow); overflow-x: auto;
+            max-height: 60vh; overflow-y: auto;
+        }
+
+        .data-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+        .data-table thead { background: linear-gradient(135deg, #f8fafc, #f1f5f9); position: sticky; top: 0; z-index: 10; }
+
+        .data-table th {
+            padding: 12px 16px; text-align: left; font-weight: 600;
+            color: var(--text-primary); border-bottom: 2px solid var(--border);
+            white-space: nowrap; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;
+        }
+
+        .data-table td { padding: 10px 16px; border-bottom: 1px solid var(--border); color: var(--text-primary); white-space: nowrap; }
+        .data-table tbody tr:hover { background: rgba(59, 130, 246, 0.03); }
+        .data-table tbody tr:nth-child(even) { background: #fafbfc; }
+        .data-table tbody tr:nth-child(even):hover { background: rgba(59, 130, 246, 0.05); }
+
+        .status-ok { background: var(--success-light); color: var(--success); padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; display: inline-block; }
+        .status-nok { background: var(--danger-light); color: var(--danger); padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; display: inline-block; }
+
+        .table-info { padding: 12px 16px; font-size: 13px; color: var(--text-secondary); border-top: 1px solid var(--border); background: var(--bg-card); border-radius: 0 0 var(--radius-lg) var(--radius-lg); }
+
+        .loading-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(255, 255, 255, 0.9);
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+            z-index: 1000; gap: 16px; transition: opacity 0.3s;
+        }
+
+        .loading-overlay.hidden { opacity: 0; pointer-events: none; }
+        .spinner { width: 40px; height: 40px; border: 4px solid var(--border); border-top-color: var(--primary); border-radius: 50%; animation: spin 0.8s linear infinite; }
+        .loading-overlay p { font-size: 14px; color: var(--text-secondary); font-weight: 500; }
+
+        @media (max-width: 768px) {
+            .header { padding: 12px 16px; }
+            .header h1 { font-size: 16px; }
+            .tabs-nav { padding: 0 12px; }
+            .tab-btn { padding: 12px 14px; font-size: 12px; }
+            .tab-btn span { display: none; }
+            .tab-btn i { font-size: 18px; }
+            .main-content { padding: 16px; }
+            .summary-cards { grid-template-columns: 1fr; }
+            .last-update span { display: none; }
+        }
+
+        @media (max-width: 480px) {
+            .header-left { gap: 8px; }
+            .header h1 { font-size: 14px; }
+        }
+    </style>
 </head>
+
 <body>
-<header>Dashboard Logístico - NF's e Controle de Lotes</header>
+    <div class="app-container">
+        <header class="header">
+            <div class="header-left">
+                <i class="fas fa-chart-bar header-icon"></i>
+                <h1>Dashboard de Controle</h1>
+            </div>
+            <div class="header-right">
+                <div class="last-update" id="lastUpdate">
+                    <i class="fas fa-clock"></i>
+                    <span>Carregando...</span>
+                </div>
+                <button class="refresh-btn" id="refreshBtn" title="Atualizar dados">
+                    <i class="fas fa-sync-alt"></i>
+                </button>
+            </div>
+        </header>
 
-<div class="tabs">
-  <button class="tab active" onclick="showTab(0)">NF's</button>
-  <button class="tab" onclick="showTab(1)">Controle de Lotes</button>
-</div>
+        <nav class="tabs-nav">
+            <button class="tab-btn active" data-tab="dashboard1">
+                <i class="fas fa-file-invoice"></i>
+                <span>Controle NF</span>
+            </button>
+            <button class="tab-btn" data-tab="dashboard2">
+                <i class="fas fa-boxes-stacked"></i>
+                <span>SAP X SGM - Lote</span>
+            </button>
+            <button class="tab-btn" data-tab="dashboard3">
+                <i class="fas fa-barcode"></i>
+                <span>SGM X SAP - Material CODE</span>
+            </button>
+            <button class="tab-btn" data-tab="dashboard4">
+                <i class="fas fa-warehouse"></i>
+                <span>Estoque VIVO</span>
+            </button>
+        </nav>
 
-<div class="container">
-  <div id="erro" class="error hidden"></div>
-  <div id="loading" class="loading">Carregando dados dos links...</div>
+        <main class="main-content">
+            <section class="dashboard-panel active" id="dashboard1">
+                <div class="panel-header"><h2>Controle NF</h2></div>
+                <div class="summary-cards" id="summary1"></div>
+                <div class="filter-container">
+                    <i class="fas fa-search filter-icon"></i>
+                    <input type="text" class="filter-input" id="filter1" placeholder="Filtrar em todas as colunas...">
+                </div>
+                <div class="table-container">
+                    <table class="data-table" id="table1"><thead id="thead1"></thead><tbody id="tbody1"></tbody></table>
+                </div>
+                <div class="table-info" id="info1"></div>
+            </section>
 
-  <!-- ABA NF'S -->
-  <div id="tab0" class="hidden">
-    <div id="kpiNF" class="kpi hidden">
-      <div><small>Total NF's</small><b id="kpiTotal">0</b></div>
-      <div><small>Pendentes</small><b id="kpiPend">0</b></div>
-      <div><small>Aprovadas</small><b id="kpiAprov">0</b></div>
+            <section class="dashboard-panel" id="dashboard2">
+                <div class="panel-header"><h2>Controle SAP X SGM - Lote</h2></div>
+                <div class="summary-cards" id="summary2"></div>
+                <div class="filter-container">
+                    <i class="fas fa-search filter-icon"></i>
+                    <input type="text" class="filter-input" id="filter2" placeholder="Filtrar em todas as colunas...">
+                </div>
+                <div class="table-container">
+                    <table class="data-table" id="table2"><thead id="thead2"></thead><tbody id="tbody2"></tbody></table>
+                </div>
+                <div class="table-info" id="info2"></div>
+            </section>
+
+            <section class="dashboard-panel" id="dashboard3">
+                <div class="panel-header"><h2>Controle Estoque SGM X SAP - Material CODE</h2></div>
+                <div class="summary-cards" id="summary3"></div>
+                <div class="filter-container">
+                    <i class="fas fa-search filter-icon"></i>
+                    <input type="text" class="filter-input" id="filter3" placeholder="Filtrar em todas as colunas...">
+                </div>
+                <div class="table-container">
+                    <table class="data-table" id="table3"><thead id="thead3"></thead><tbody id="tbody3"></tbody></table>
+                </div>
+                <div class="table-info" id="info3"></div>
+            </section>
+
+            <section class="dashboard-panel" id="dashboard4">
+                <div class="panel-header"><h2>Controle Estoque VIVO - SGM X SGS</h2></div>
+                <div class="summary-cards" id="summary4"></div>
+                <div class="filter-container">
+                    <i class="fas fa-search filter-icon"></i>
+                    <input type="text" class="filter-input" id="filter4" placeholder="Filtrar em todas as colunas...">
+                </div>
+                <div class="table-container">
+                    <table class="data-table" id="table4"><thead id="thead4"></thead><tbody id="tbody4"></tbody></table>
+                </div>
+                <div class="table-info" id="info4"></div>
+            </section>
+        </main>
     </div>
-    <div class="card">
-      <div class="filters">
-        <input type="text" id="buscaNF" placeholder="Buscar em todas colunas...">
-      </div>
-      <div style="overflow:auto;max-height:70vh">
-        <table id="tabelaNF"></table>
-      </div>
+
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="spinner"></div>
+        <p>Carregando dados...</p>
     </div>
-  </div>
 
-  <!-- ABA CONTROLE -->
-  <div id="tab1" class="hidden">
-    <div id="kpiCtrl" class="kpi ctrl hidden">
-      <div><small>Total Lotes</small><b id="kpiLotes">0</b></div>
-      <div><small>Lotes OK</small><b id="kpiOk" class="ok">0</b></div>
-      <div><small>Lotes NOK</small><b id="kpiNok" class="nok">0</b></div>
-    </div>
-    <div class="card">
-      <div class="filters">
-        <input type="text" id="buscaLote" placeholder="Buscar lote/produto...">
-      </div>
-      <div style="overflow:auto;max-height:70vh">
-        <table id="tabelaCtrl"></table>
-      </div>
-    </div>
-  </div>
-</div>
+    <script>
+        const DATA_URLS = {
+            dashboard1: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSCnoIYNnkZaxPPDyPHeYsSTvIxuLgiY615owuPEk9JQIP47RMbxfNUqZe2dPUVnpv68Rk6HYnm_xcW/pub?gid=827550886&single=true&output=csv',
+            dashboard2: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSCnoIYNnkZaxPPDyPHeYsSTvIxuLgiY615owuPEk9JQIP47RMbxfNUqZe2dPUVnpv68Rk6HYnm_xcW/pub?gid=339563384&single=true&output=csv',
+            dashboard3: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSCnoIYNnkZaxPPDyPHeYsSTvIxuLgiY615owuPEk9JQIP47RMbxfNUqZe2dPUVnpv68Rk6HYnm_xcW/pub?gid=723137894&single=true&output=csv',
+            dashboard4: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSCnoIYNnkZaxPPDyPHeYsSTvIxuLgiY615owuPEk9JQIP47RMbxfNUqZe2dPUVnpv68Rk6HYnm_xcW/pub?gid=611213310&single=true&output=csv',
+            timestamp: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSCnoIYNnkZaxPPDyPHeYsSTvIxuLgiY615owuPEk9JQIP47RMbxfNUqZe2dPUVnpv68Rk6HYnm_xcW/pub?gid=768524100&single=true&output=csv'
+        };
 
-<script>
-const URL_NF = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSCnoIYNnkZaxPPDyPHeYsSTvIxuLgiY615owuPEk9JQIP47RMbxfNUqZe2dPUVnpv68Rk6HYnm_xcW/pub?gid=827550886&single=true&output=csv';
-const URL_CTRL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSCnoIYNnkZaxPPDyPHeYsSTvIxuLgiY615owuPEk9JQIP47RMbxfNUqZe2dPUVnpv68Rk6HYnm_xcW/pub?gid=45924650&single=true&output=csv';
+        const dashboardData = {
+            dashboard1: { headers: [], rows: [], filteredRows: [] },
+            dashboard2: { headers: [], rows: [], filteredRows: [] },
+            dashboard3: { headers: [], rows: [], filteredRows: [] },
+            dashboard4: { headers: [], rows: [], filteredRows: [] }
+        };
 
-let dataNF=[], dataCtrl=[], colsNF=[], colsCtrl=[];
+        function parseCSV(text) {
+            const rows = [];
+            let currentRow = [];
+            let currentField = '';
+            let inQuotes = false;
 
-function showTab(n){
-  document.querySelectorAll('.tab').forEach((t,i)=>t.classList.toggle('active',i==n));
-  document.getElementById('tab0').classList.toggle('hidden',n!=0);
-  document.getElementById('tab1').classList.toggle('hidden',n!=1);
-}
+            for (let i = 0; i < text.length; i++) {
+                const char = text[i];
+                const nextChar = text[i + 1];
 
-async function carregarCSV(url){
-  const resp = await fetch(url);
-  if(!resp.ok) throw new Error('Erro ao buscar dados');
-  const text = await resp.text();
-  const linhas = text.split(/\r?\n/).filter(l=>l.trim());
-  const header = linhas[0].split(',').map(h=>h.trim().replace(/"/g,''));
-  const dados = linhas.slice(1).map(l=>{
-    const vals = l.split(/,(?=(?:[^\"]*\"[^\"]*\")*[^\"]*$)/).map(v=>v.trim().replace(/"/g,''));
-    let obj={}; header.forEach((h,i)=>obj[h]=vals[i]||'');
-    return obj;
-  }).filter(d=>Object.values(d).some(v=>v));
-  return {header, dados};
-}
+                if (inQuotes) {
+                    if (char === '"' && nextChar === '"') { currentField += '"'; i++; }
+                    else if (char === '"') { inQuotes = false; }
+                    else { currentField += char; }
+                } else {
+                    if (char === '"') { inQuotes = true; }
+                    else if (char === ',') { currentRow.push(currentField.trim()); currentField = ''; }
+                    else if (char === '\n' || (char === '\r' && nextChar === '\n')) {
+                        currentRow.push(currentField.trim());
+                        if (currentRow.some(field => field !== '')) { rows.push(currentRow); }
+                        currentRow = []; currentField = '';
+                        if (char === '\r') i++;
+                    } else { currentField += char; }
+                }
+            }
 
-function num(valor){
-  if(!valor) return 0;
-  return parseFloat(valor.toString().replace(/[^\d.,-]/g,'').replace('.','').replace(',','.')) || 0;
-}
+            currentRow.push(currentField.trim());
+            if (currentRow.some(field => field !== '')) { rows.push(currentRow); }
+            return rows;
+        }
 
-function reordenarColsNF(cols){
-  const statusCol = cols.find(c=>c.toLowerCase().includes('status'));
-  const nfCol = cols.find(c=>c.toLowerCase().includes('nf') &&!c.toLowerCase().includes('status'));
-  const romaneioCol = cols.find(c=>c.toLowerCase().includes('romaneio'));
-  const resto = cols.filter(c=>c!=statusCol && c!=nfCol && c!=romaneioCol);
-  return [statusCol, nfCol, romaneioCol,...resto].filter(Boolean);
-}
+        async function fetchCSV(url) {
+            try {
+                const response = await fetch(url);
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                const text = await response.text();
+                return parseCSV(text);
+            } catch (error) {
+                console.error('Error fetching CSV:', error);
+                return [];
+            }
+        }
 
-function renderNF(){
-  const statusCol = colsNF.find(c=>c.toLowerCase().includes('status'));
-  const evidCol = colsNF.find(c=>c.toLowerCase().includes('evidencia'));
-  const colsOrdenadas = reordenarColsNF(colsNF);
+        async function fetchTimestamp() {
+            const data = await fetchCSV(DATA_URLS.timestamp);
+            const updateEl = document.getElementById('lastUpdate');
+            if (data.length > 0 && data[0].length > 0) {
+                const timestamp = data[0][0];
+                updateEl.innerHTML = `<i class="fas fa-clock"></i><span>Última atualização: ${timestamp}</span>`;
+            } else {
+                updateEl.innerHTML = `<i class="fas fa-clock"></i><span>Não disponível</span>`;
+            }
+        }
 
-  const filtrado = dataNF.filter(d=>{
-    const txt = buscaNF.value.toLowerCase();
-    return txt=='' || JSON.stringify(d).toLowerCase().includes(txt);
-  });
+        function findStatusColumn(headers) {
+            for (let i = 0; i < headers.length; i++) {
+                if (headers[i].toLowerCase().includes('status')) return i;
+            }
+            return -1;
+        }
 
-  kpiNF.classList.remove('hidden');
-  kpiTotal.textContent = filtrado.length;
-  kpiPend.textContent = filtrado.filter(d=>d[statusCol]?.toLowerCase().includes('pend')).length;
-  kpiAprov.textContent = filtrado.filter(d=>d[statusCol]?.toLowerCase().includes('aprov')).length;
+        function countStatuses(rows, statusColIndex, type) {
+            let okCount = 0;
+            let nokCount = 0;
 
-  tabelaNF.innerHTML = '<tr>'+colsOrdenadas.map(c=>`<th>${c}</th>`).join('')+'</tr>' +
-    filtrado.map(r=>'<tr>'+colsOrdenadas.map(c=>{
-      if(c==evidCol && r[c] && r[c].startsWith('http'))
-        return `<td class="evidencia"><a href="${r[c]}" target="_blank">Ver</a></td>`;
-      return `<td>${r[c]||''}</td>`;
-    }).join('')+'</tr>').join('');
-}
+            rows.forEach(row => {
+                if (statusColIndex >= 0 && statusColIndex < row.length) {
+                    const value = row[statusColIndex].toUpperCase().trim();
+                    if (type === 'nf') {
+                        if (value === 'OK' || value === 'NF OK') okCount++;
+                        else if (value === 'NOK' || value === 'NF NOK') nokCount++;
+                    } else {
+                        if (value === 'OK' || value === 'ESTOQUE OK' || value.includes('OK')) okCount++;
+                        if (value === 'NOK' || value === 'ESTOQUE NOK' || value.includes('NOK')) nokCount++;
+                    }
+                }
+            });
 
-function renderCtrl(){
-  const loteCol = colsCtrl.find(c=>c.toLowerCase().includes('lote'));
-  const qtdCol = colsCtrl.find(c=>c.toLowerCase().includes('qtd'));
-  const sgmCol = colsCtrl.find(c=>c.toLowerCase().includes('sgm'));
-  const sapCol = colsCtrl.find(c=>c.toLowerCase().includes('sap'));
+            return { ok: okCount, nok: nokCount, total: rows.length };
+        }
 
-  const grupos = {};
-  dataCtrl.forEach(r=>{
-    const lote = r[loteCol];
-    if(!lote) return;
-    if(!grupos[lote]) grupos[lote] = {Lote:lote, QTD:0, SGM:[], SAP:[]};
-    grupos[lote].QTD += num(r[qtdCol]);
-    if(num(r[sgmCol])) grupos[lote].SGM.push(num(r[sgmCol]));
-    if(num(r[sapCol])) grupos[lote].SAP.push(num(r[sapCol]));
-  });
+        function renderSummary(containerId, counts, type) {
+            const container = document.getElementById(containerId);
+            const okLabel = type === 'nf' ? 'NF OK' : 'Estoque OK';
+            const nokLabel = type === 'nf' ? 'NF NOK' : 'Estoque NOK';
+            const totalLabel = type === 'nf' ? 'Total NF' : 'Total Estoque';
 
-  const res = Object.values(grupos).filter(g=>{
-    return buscaLote.value=='' || g.Lote.toLowerCase().includes(buscaLote.value.toLowerCase());
-  }).map(g=>{
-    const mediaSGM = g.SGM.length? (g.SGM.reduce((a,b)=>a+b,0)/g.SGM.length) : 0;
-    const mediaSAP = g.SAP.length? (g.SAP.reduce((a,b)=>a+b,0)/g.SAP.length) : 0;
-    const diff = mediaSGM - mediaSAP;
-    return {
-      Lote: g.Lote,
-      'QTD Total': g.QTD.toLocaleString('pt-BR'),
-      'Saldo SGM': mediaSGM.toFixed(2),
-      'Saldo SAP': mediaSAP.toFixed(2),
-      'Status LOTE': diff==0? 'OK' : 'NOK',
-      _status: diff==0? 'OK' : 'NOK'
-    };
-  });
+            container.innerHTML = `
+                <div class="summary-card ok">
+                    <div class="card-icon"><i class="fas fa-check-circle"></i></div>
+                    <div class="card-content">
+                        <span class="card-label">${okLabel}</span>
+                        <span class="card-value">${counts.ok}</span>
+                    </div>
+                </div>
+                <div class="summary-card nok">
+                    <div class="card-icon"><i class="fas fa-times-circle"></i></div>
+                    <div class="card-content">
+                        <span class="card-label">${nokLabel}</span>
+                        <span class="card-value">${counts.nok}</span>
+                    </div>
+                </div>
+                <div class="summary-card total">
+                    <div class="card-icon"><i class="fas fa-list"></i></div>
+                    <div class="card-content">
+                        <span class="card-label">${totalLabel}</span>
+                        <span class="card-value">${counts.total}</span>
+                    </div>
+                </div>
+            `;
+        }
 
-  kpiCtrl.classList.remove('hidden');
-  kpiLotes.textContent = res.length;
-  kpiOk.textContent = res.filter(r=>r._status=='OK').length;
-  kpiNok.textContent = res.filter(r=>r._status=='NOK').length;
+        function renderHeaders(theadId, headers) {
+            const thead = document.getElementById(theadId);
+            let html = '<tr>';
+            headers.forEach(header => { html += `<th>${header}</th>`; });
+            html += '</tr>';
+            thead.innerHTML = html;
+        }
 
-  tabelaCtrl.innerHTML = '<tr>'+['Lote','QTD Total','Saldo SGM','Saldo SAP','Status LOTE'].map(c=>`<th>${c}</th>`).join('')+'</tr>' +
-    res.map(r=>`<tr>
-      <td>${r.Lote}</td>
-      <td>${r['QTD Total']}</td>
-      <td>${r['Saldo SGM']}</td>
-      <td>${r['Saldo SAP']}</td>
-      <td class="${r._status=='OK'?'status-ok':'status-nok'}">${r._status}</td>
-    </tr>`).join('');
-}
+        function formatCell(value, colIndex, statusColIndex) {
+            if (colIndex === statusColIndex) {
+                const upper = value.toUpperCase().trim();
+                if (upper.includes('OK') && !upper.includes('NOK')) return `<span class="status-ok">${value}</span>`;
+                else if (upper.includes('NOK')) return `<span class="status-nok">${value}</span>`;
+            }
+            return value;
+        }
 
-buscaNF.oninput = renderNF;
-buscaLote.oninput = renderCtrl;
+        function renderBody(tbodyId, rows, statusColIndex) {
+            const tbody = document.getElementById(tbodyId);
+            let html = '';
+            rows.forEach(row => {
+                html += '<tr>';
+                row.forEach((cell, index) => { html += `<td>${formatCell(cell, index, statusColIndex)}</td>`; });
+                html += '</tr>';
+            });
+            tbody.innerHTML = html || '<tr><td colspan="100" style="text-align:center;padding:40px;color:var(--text-secondary);">Nenhum dado encontrado</td></tr>';
+        }
 
-async function init(){
-  try{
-    const [nf, ctrl] = await Promise.all([carregarCSV(URL_NF), carregarCSV(URL_CTRL)]);
-    colsNF = nf.header; dataNF = nf.dados;
-    colsCtrl = ctrl.header; dataCtrl = ctrl.dados;
+        function renderInfo(infoId, filteredCount, totalCount) {
+            const info = document.getElementById(infoId);
+            info.textContent = `Exibindo <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mrow><mi>f</mi><mi>i</mi><mi>l</mi><mi>t</mi><mi>e</mi><mi>r</mi><mi>e</mi><mi>d</mi><mi>C</mi><mi>o</mi><mi>u</mi><mi>n</mi><mi>t</mi></mrow><mi>d</mi><mi>e</mi></mrow><annotation encoding="application/x-tex">{filteredCount} de </annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.8889em;vertical-align:-0.1944em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.10764em;">f</span><span class="mord mathnormal">i</span><span class="mord mathnormal">lt</span><span class="mord mathnormal">ere</span><span class="mord mathnormal">d</span><span class="mord mathnormal" style="margin-right:0.07153em;">C</span><span class="mord mathnormal">o</span><span class="mord mathnormal">u</span><span class="mord mathnormal">n</span><span class="mord mathnormal">t</span></span><span class="mord mathnormal">d</span><span class="mord mathnormal">e</span></span></span></span>{totalCount} registros`;
+        }
 
-    loading.classList.add('hidden');
-    renderNF();
-    renderCtrl();
-  }catch(e){
-    loading.classList.add('hidden');
-    erro.classList.remove('hidden');
-    erro.textContent = 'Erro ao carregar dados. Verifique se os links CSV estão públicos. ' + e.message;
-  }
-}
+        function filterRows(rows, searchTerm) {
+            if (!searchTerm) return rows;
+            const term = searchTerm.toLowerCase();
+            return rows.filter(row => row.some(cell => cell.toLowerCase().includes(term)));
+        }
 
-init();
-</script>
+        async function loadDashboard(dashboardId, url, summaryType) {
+            const data = await fetchCSV(url);
+            if (data.length === 0) return;
+
+            const headers = data[0];
+            const rows = data.slice(1);
+            dashboardData[dashboardId] = { headers, rows, filteredRows: rows };
+
+            const num = dashboardId.replace('dashboard', '');
+            const statusColIndex = findStatusColumn(headers);
+
+            const counts = countStatuses(rows, statusColIndex, summaryType);
+            renderSummary(`summary${num}`, counts, summaryType);
+            renderHeaders(`thead${num}`, headers);
+            renderBody(`tbody${num}`, rows, statusColIndex);
+            renderInfo(`info${num}`, rows.length, rows.length);
+        }
+
+        function setupFilter(dashboardId) {
+            const num = dashboardId.replace('dashboard', '');
+            const filterInput = document.getElementById(`filter${num}`);
+
+            filterInput.addEventListener('input', (e) => {
+                const searchTerm = e.target.value;
+                const { headers, rows } = dashboardData[dashboardId];
+                const statusColIndex = findStatusColumn(headers);
+                const filteredRows = filterRows(rows, searchTerm);
+
+                dashboardData[dashboardId].filteredRows = filteredRows;
+                renderBody(`tbody${num}`, filteredRows, statusColIndex);
+                renderInfo(`info${num}`, filteredRows.length, rows.length);
+            });
+        }
+
+        function setupTabs() {
+            const tabBtns = document.querySelectorAll('.tab-btn');
+            const panels = document.querySelectorAll('.dashboard-panel');
+
+            tabBtns.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const targetTab = btn.dataset.tab;
+                    tabBtns.forEach(b => b.classList.remove('active'));
+                    panels.forEach(p => p.classList.remove('active'));
+                    btn.classList.add('active');
+                    document.getElementById(targetTab).classList.add('active');
+                });
+            });
+        }
+
+        function setupRefresh() {
+            const refreshBtn = document.getElementById('refreshBtn');
+            refreshBtn.addEventListener('click', async () => {
+                refreshBtn.classList.add('spinning');
+                await loadAllDashboards();
+                refreshBtn.classList.remove('spinning');
+            });
+        }
+
+        async function loadAllDashboards() {
+            const loading = document.getElementById('loadingOverlay');
+            loading.classList.remove('hidden');
+
+            await Promise.all([
+                loadDashboard('dashboard1', DATA_URLS.dashboard1, 'nf'),
+                loadDashboard('dashboard2', DATA_URLS.dashboard2, 'estoque'),
+                loadDashboard('dashboard3', DATA_URLS.dashboard3, 'estoque'),
+                loadDashboard('dashboard4', DATA_URLS.dashboard4, 'estoque'),
+                fetchTimestamp()
+            ]);
+
+            loading.classList.add('hidden');
+        }
+
+        async function init() {
+            setupTabs();
+            setupRefresh();
+            setupFilter('dashboard1');
+            setupFilter('dashboard2');
+            setupFilter('dashboard3');
+            setupFilter('dashboard4');
+            await loadAllDashboards();
+        }
+
+        init();
+    </script>
 </body>
+
 </html>
