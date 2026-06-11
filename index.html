@@ -232,10 +232,6 @@
                 <i class="fas fa-barcode"></i>
                 <span>SGM X SAP - Material CODE</span>
             </button>
-            <button class="tab-btn" data-tab="dashboard4">
-                <i class="fas fa-warehouse"></i>
-                <span>Estoque VIVO</span>
-            </button>
         </nav>
 
         <main class="main-content">
@@ -277,19 +273,6 @@
                 </div>
                 <div class="table-info" id="info3"></div>
             </section>
-
-            <section class="dashboard-panel" id="dashboard4">
-                <div class="panel-header"><h2>Controle Estoque VIVO - SGM X SGS</h2></div>
-                <div class="summary-cards" id="summary4"></div>
-                <div class="filter-container">
-                    <i class="fas fa-search filter-icon"></i>
-                    <input type="text" class="filter-input" id="filter4" placeholder="Filtrar em todas as colunas...">
-                </div>
-                <div class="table-container">
-                    <table class="data-table" id="table4"><thead id="thead4"></thead><tbody id="tbody4"></tbody></table>
-                </div>
-                <div class="table-info" id="info4"></div>
-            </section>
         </main>
     </div>
 
@@ -303,15 +286,13 @@
             dashboard1: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSCnoIYNnkZaxPPDyPHeYsSTvIxuLgiY615owuPEk9JQIP47RMbxfNUqZe2dPUVnpv68Rk6HYnm_xcW/pub?gid=827550886&single=true&output=csv',
             dashboard2: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSCnoIYNnkZaxPPDyPHeYsSTvIxuLgiY615owuPEk9JQIP47RMbxfNUqZe2dPUVnpv68Rk6HYnm_xcW/pub?gid=339563384&single=true&output=csv',
             dashboard3: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSCnoIYNnkZaxPPDyPHeYsSTvIxuLgiY615owuPEk9JQIP47RMbxfNUqZe2dPUVnpv68Rk6HYnm_xcW/pub?gid=723137894&single=true&output=csv',
-            dashboard4: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSCnoIYNnkZaxPPDyPHeYsSTvIxuLgiY615owuPEk9JQIP47RMbxfNUqZe2dPUVnpv68Rk6HYnm_xcW/pub?gid=611213310&single=true&output=csv',
             timestamp: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSCnoIYNnkZaxPPDyPHeYsSTvIxuLgiY615owuPEk9JQIP47RMbxfNUqZe2dPUVnpv68Rk6HYnm_xcW/pub?gid=768524100&single=true&output=csv'
         };
 
         const dashboardData = {
             dashboard1: { headers: [], rows: [], filteredRows: [] },
             dashboard2: { headers: [], rows: [], filteredRows: [] },
-            dashboard3: { headers: [], rows: [], filteredRows: [] },
-            dashboard4: { headers: [], rows: [], filteredRows: [] }
+            dashboard3: { headers: [], rows: [], filteredRows: [] }
         };
 
         function parseCSV(text) {
@@ -389,7 +370,6 @@
             rows.forEach(row => {
                 if (statusColIndex >= 0 && statusColIndex < row.length) {
                     const value = row[statusColIndex].toUpperCase().trim();
-                    // Sempre checa NOK primeiro (NOK contém "OK" como substring!)
                     if (value.includes('NOK')) {
                         nokCount++;
                     } else if (value.includes('OK')) {
@@ -471,22 +451,58 @@
             return rows.filter(row => row.some(cell => cell.toLowerCase().includes(term)));
         }
 
+        function transformDashboard1(headers, rows) {
+            const renamed = headers.map(h => {
+                const low = h.toLowerCase();
+                if (low.includes('informe o número da nf') || low.includes('informe o numero da nf')) return 'NF';
+                if (low.includes('informe o número do romaneio') || low.includes('informe o numero do romaneio')) return 'Romaneio';
+                return h;
+            });
+            const desiredOrder = [
+                'status nf',
+                'nf',
+                'romaneio',
+                'observa',
+                'informe a foto da nf ou romaneio',
+                'evidências - foto do produto'
+            ];
+            const usedIdx = new Set();
+            const newIndices = [];
+            desiredOrder.forEach(target => {
+                const t = target.toLowerCase();
+                let foundIdx = -1;
+                for (let i = 0; i < renamed.length; i++) {
+                    if (usedIdx.has(i)) continue;
+                    const hl = renamed[i].toLowerCase().trim();
+                    if (target === 'nf') {
+                        if (hl === 'nf') { foundIdx = i; break; }
+                    } else if (target === 'romaneio') {
+                        if (hl === 'romaneio') { foundIdx = i; break; }
+                    } else {
+                        if (hl.includes(t)) { foundIdx = i; break; }
+                    }
+                }
+                if (foundIdx >= 0) { newIndices.push(foundIdx); usedIdx.add(foundIdx); }
+            });
+            for (let i = 0; i < renamed.length; i++) {
+                if (!usedIdx.has(i)) newIndices.push(i);
+            }
+            const newHeaders = newIndices.map(i => renamed[i]);
+            const newRows = rows.map(r => newIndices.map(i => r[i] !== undefined ? r[i] : ''));
+            return { headers: newHeaders, rows: newRows };
+        }
+
         async function loadDashboard(dashboardId, url, summaryType) {
             const data = await fetchCSV(url);
             if (data.length === 0) return;
 
-            const headers = data[0];
+            let headers = data[0];
             let rows = data.slice(1);
 
-            // Para dashboard4, filtrar apenas linhas do tipo "VIVO" (excluir "Lote")
-            if (dashboardId === 'dashboard4') {
-                const tipoColIndex = findTipoColumn(headers);
-                if (tipoColIndex >= 0) {
-                    rows = rows.filter(row => {
-                        const tipoValue = (row[tipoColIndex] || '').toUpperCase().trim();
-                        return tipoValue.includes('VIVO');
-                    });
-                }
+            if (dashboardId === 'dashboard1') {
+                const t = transformDashboard1(headers, rows);
+                headers = t.headers;
+                rows = t.rows;
             }
 
             dashboardData[dashboardId] = { headers, rows, filteredRows: rows };
@@ -549,7 +565,6 @@
                 loadDashboard('dashboard1', DATA_URLS.dashboard1, 'nf'),
                 loadDashboard('dashboard2', DATA_URLS.dashboard2, 'estoque'),
                 loadDashboard('dashboard3', DATA_URLS.dashboard3, 'estoque'),
-                loadDashboard('dashboard4', DATA_URLS.dashboard4, 'estoque'),
                 fetchTimestamp()
             ]);
 
@@ -562,7 +577,6 @@
             setupFilter('dashboard1');
             setupFilter('dashboard2');
             setupFilter('dashboard3');
-            setupFilter('dashboard4');
             await loadAllDashboards();
         }
 
