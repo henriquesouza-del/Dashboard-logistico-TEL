@@ -513,34 +513,75 @@
             return { headers: newHeaders, rows: newRows };
         }
 
-        function findColumnIndex(headers, names) {
-            for (let i = 0; i < headers.length; i++) {
-                const h = headers[i].toLowerCase().trim();
-                for (const name of names) {
-                    if (h === name.toLowerCase().trim() || h.includes(name.toLowerCase().trim())) {
-                        return i;
-                    }
+        function normKey(s) {
+            return String(s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+        }
+
+        function findCol(headers, names) {
+            const norm = headers.map(h => normKey(h));
+            for (const name of names) {
+                const n = normKey(name);
+                const exact = norm.indexOf(n);
+                if (exact >= 0) return exact;
+            }
+            for (const name of names) {
+                const n = normKey(name);
+                for (let i = 0; i < norm.length; i++) {
+                    if (n && norm[i].includes(n)) return i;
                 }
             }
             return -1;
         }
 
-        function findAllColumnIndices(headers, names) {
-            const indices = [];
-            for (let i = 0; i < headers.length; i++) {
-                const h = headers[i].toLowerCase().trim();
-                for (const name of names) {
-                    if (h === name.toLowerCase().trim() || h.includes(name.toLowerCase().trim())) {
-                        indices.push(i);
-                        break;
-                    }
-                }
-            }
-            return indices;
+        function findAllCols(headers, names) {
+            const norm = headers.map(h => normKey(h));
+            const out = [];
+            norm.forEach((h, i) => {
+                if (names.some(n => h === normKey(n) || (normKey(n) && h.includes(normKey(n))))) out.push(i);
+            });
+            return out;
         }
 
         function normalizeSerial(value) {
-            return String(value || '').trim().toLowerCase();
+            return String(value || '').trim().toUpperCase().replace(/\s+/g, '');
+        }
+
+        function cellOf(row, idx) {
+            return idx >= 0 && row[idx] !== undefined ? String(row[idx]).trim() : '';
+        }
+
+        function renderSummary4(counts) {
+            const container = document.getElementById('summary4');
+            container.innerHTML = `
+                <div class="summary-card ok">
+                    <div class="card-icon"><i class="fas fa-check-circle"></i></div>
+                    <div class="card-content">
+                        <span class="card-label">Nos 2 sistemas</span>
+                        <span class="card-value">${counts.ambos}</span>
+                    </div>
+                </div>
+                <div class="summary-card nok">
+                    <div class="card-icon"><i class="fas fa-times-circle"></i></div>
+                    <div class="card-content">
+                        <span class="card-label">Só no SGM</span>
+                        <span class="card-value">${counts.soSgm}</span>
+                    </div>
+                </div>
+                <div class="summary-card nok">
+                    <div class="card-icon"><i class="fas fa-times-circle"></i></div>
+                    <div class="card-content">
+                        <span class="card-label">Só no Amerinode</span>
+                        <span class="card-value">${counts.soAmerinode}</span>
+                    </div>
+                </div>
+                <div class="summary-card total">
+                    <div class="card-icon"><i class="fas fa-list"></i></div>
+                    <div class="card-content">
+                        <span class="card-label">TOTAL</span>
+                        <span class="card-value">${counts.total}</span>
+                    </div>
+                </div>
+            `;
         }
 
         async function loadDashboard4() {
@@ -549,90 +590,129 @@
                 fetchCSV(DATA_URLS.dashboard4amerinode)
             ]);
 
-            if (sgmData.length === 0) return;
-
-            const sgmHeaders = sgmData[0];
-            const sgmRows = sgmData.slice(1);
-
+            const sgmHeaders = sgmData.length > 0 ? sgmData[0] : [];
+            const sgmRows = sgmData.length > 0 ? sgmData.slice(1) : [];
             const amerinodeHeaders = amerinodeData.length > 0 ? amerinodeData[0] : [];
             const amerinodeRows = amerinodeData.length > 0 ? amerinodeData.slice(1) : [];
 
-            const idxSgmPartnumber = findColumnIndex(sgmHeaders, ['Partnumber']);
-            const idxSgmMaterial = findColumnIndex(sgmHeaders, ['Material']);
-            const idxSgmNome = findColumnIndex(sgmHeaders, ['Nome']);
-            const idxSgmLocal = findColumnIndex(sgmHeaders, ['local']);
-            const idxSgmSerial = findColumnIndex(sgmHeaders, ['Serial']);
-            const idxSgmBem = findColumnIndex(sgmHeaders, ['Bem Patrimonial']);
-            const idxSgmSubLocal = findColumnIndex(sgmHeaders, ['SubLocal']);
-            const idxSgmEndereco = findColumnIndex(sgmHeaders, ['Endereço', 'Endereco']);
-            const nomeIndices = findAllColumnIndices(sgmHeaders, ['Nome']);
-            const idxSgmNome2 = nomeIndices.length > 1 ? nomeIndices[1] : (nomeIndices.length > 0 ? nomeIndices[0] : -1);
-            const idxSgmNivel = findColumnIndex(sgmHeaders, ['Nível', 'Nivel']);
+            // --- Índices SGM ---
+            const iSgmPart = findCol(sgmHeaders, ['Part Number', 'Partnumber', 'PN']);
+            const iSgmMaterial = findCol(sgmHeaders, ['Material']);
+            const iSgmNome = findCol(sgmHeaders, ['Nome']);
+            const iSgmSerial = findCol(sgmHeaders, ['Serial']);
+            const iSgmBem = findCol(sgmHeaders, ['Bem Patrimonial']);
+            const iSgmEndereco = findCol(sgmHeaders, ['Endereço', 'Endereco']);
+            const nomeIdx = findAllCols(sgmHeaders, ['Nome']);
+            const iSgmEstante = nomeIdx.length > 1 ? nomeIdx[1] : -1;
+            const iSgmNivel = findCol(sgmHeaders, ['Nível', 'Nivel']);
 
-            const idxAmerinodeCodProduto = findColumnIndex(amerinodeHeaders, ['Cód. Produto', 'Cod. Produto', 'Código Produto', 'Codigo Produto']);
-            const idxAmerinodeSerial = findColumnIndex(amerinodeHeaders, ['Serial']);
+            // --- Índices Amerinode ---
+            const iAmePart = findCol(amerinodeHeaders, ['Part Number', 'Partnumber']);
+            const iAmeCod = findCol(amerinodeHeaders, ['Cód. Produto', 'Cod. Produto', 'Código Produto', 'Codigo Produto']);
+            const iAmeDesc = findCol(amerinodeHeaders, ['Desc. Produto', 'Descrição Produto']);
+            const iAmeSerial = findCol(amerinodeHeaders, ['Serial']);
+            const iAmeAtivo = findCol(amerinodeHeaders, ['Id. Ativo']);
 
-            const amerinodeMap = new Map();
-            amerinodeRows.forEach(row => {
-                if (idxAmerinodeSerial >= 0) {
-                    const serial = normalizeSerial(row[idxAmerinodeSerial]);
-                    const codProduto = idxAmerinodeCodProduto >= 0 ? (row[idxAmerinodeCodProduto] || '') : '';
-                    if (serial) {
-                        amerinodeMap.set(serial, codProduto);
-                    }
+            // --- Consolidação por serial (sem duplicados) ---
+            const registros = new Map();
+
+            function getReg(serialNorm, serialOriginal) {
+                if (!registros.has(serialNorm)) {
+                    registros.set(serialNorm, {
+                        serial: serialOriginal,
+                        produto: '', partSgm: '', partAme: '',
+                        codSgm: '', codAme: '', bem: '',
+                        sala: '', estante: '',
+                        sgm: false, ame: false
+                    });
+                }
+                return registros.get(serialNorm);
+            }
+
+            sgmRows.forEach((row, n) => {
+                const serial = cellOf(row, iSgmSerial);
+                const key = normalizeSerial(serial) || `SGM_SEM_SERIAL_${n}`;
+                const r = getReg(key, serial);
+                r.sgm = true;
+                if (!r.produto) r.produto = cellOf(row, iSgmNome);
+                if (!r.partSgm) r.partSgm = cellOf(row, iSgmPart);
+                if (!r.codSgm) r.codSgm = cellOf(row, iSgmMaterial);
+                if (!r.bem) r.bem = cellOf(row, iSgmBem);
+                if (!r.sala) r.sala = cellOf(row, iSgmEndereco);
+                if (!r.estante) {
+                    r.estante = [cellOf(row, iSgmEstante), cellOf(row, iSgmNivel)].filter(Boolean).join(' - ');
                 }
             });
 
+            amerinodeRows.forEach((row, n) => {
+                const serial = cellOf(row, iAmeSerial);
+                const key = normalizeSerial(serial) || `AME_SEM_SERIAL_${n}`;
+                const r = getReg(key, serial);
+                r.ame = true;
+                if (!r.produto) r.produto = cellOf(row, iAmeDesc);
+                if (!r.partAme) r.partAme = cellOf(row, iAmePart);
+                if (!r.codAme) r.codAme = cellOf(row, iAmeCod);
+                if (!r.bem) r.bem = cellOf(row, iAmeAtivo);
+            });
+
+            // --- PROCV cruzado do Part Number por Cód. Produto / Material ---
+            const partPorCodAme = new Map();
+            const partPorCodSgm = new Map();
+            registros.forEach(r => {
+                if (r.codAme && r.partAme && !partPorCodAme.has(r.codAme)) partPorCodAme.set(r.codAme, r.partAme);
+                if (r.codSgm && r.partSgm && !partPorCodSgm.has(r.codSgm)) partPorCodSgm.set(r.codSgm, r.partSgm);
+            });
+
+            const counts = { ambos: 0, soSgm: 0, soAmerinode: 0, total: 0 };
+            const outputRows = [];
+
+            registros.forEach(r => {
+                // Part Number: usa o do sistema que tiver; se faltar, busca no outro (PROCV)
+                let part = r.partSgm || r.partAme;
+                if (!part && r.codAme) part = partPorCodAme.get(r.codAme) || '';
+                if (!part && r.codSgm) part = partPorCodSgm.get(r.codSgm) || '';
+
+                const status = (r.sgm && r.ame) ? 'OK' : 'NOK';
+                if (r.sgm && r.ame) counts.ambos++;
+                else if (r.sgm) counts.soSgm++;
+                else counts.soAmerinode++;
+
+                outputRows.push([
+                    r.produto,
+                    part,
+                    r.codSgm,
+                    r.codAme,
+                    r.serial,
+                    r.bem,
+                    status,
+                    r.sgm ? 'Sim' : 'Não',
+                    r.ame ? 'Sim' : 'Não',
+                    r.sala,
+                    r.estante
+                ]);
+            });
+
+            counts.total = outputRows.length;
+
             const outputHeaders = [
                 'Produto',
-                'Cód produto SGM',
-                'Cód produto Amerinode',
                 'Partnumber',
+                'Cód SGM',
+                'Cód Amerinode',
                 'Serial',
                 'Bem patrimonial',
                 'Status',
                 'Presente no SGM',
                 'Presente no Amerinode',
-                'Local',
                 'Sala',
                 'Estante e nível'
             ];
 
-            const outputRows = [];
-            let okCount = 0;
-            let nokCount = 0;
-
-            sgmRows.forEach(row => {
-                const serial = idxSgmSerial >= 0 ? String(row[idxSgmSerial] || '').trim() : '';
-                const serialNorm = normalizeSerial(serial);
-                const presenteAmerinode = serialNorm && amerinodeMap.has(serialNorm);
-                const status = presenteAmerinode ? 'OK' : 'NOK';
-
-                if (status === 'OK') okCount++;
-                else nokCount++;
-
-                outputRows.push([
-                    idxSgmNome >= 0 ? (row[idxSgmNome] || '') : '',
-                    presenteAmerinode ? (amerinodeMap.get(serialNorm) || '') : '',
-                    idxSgmMaterial >= 0 ? (row[idxSgmMaterial] || '') : '',
-                    idxSgmPartnumber >= 0 ? (row[idxSgmPartnumber] || '') : '',
-                    serial,
-                    idxSgmBem >= 0 ? (row[idxSgmBem] || '') : '',
-                    status,
-                    'Sim',
-                    presenteAmerinode ? 'Sim' : 'Não',
-                    idxSgmLocal >= 0 ? (row[idxSgmLocal] || '') : '',
-                    idxSgmEndereco >= 0 ? (row[idxSgmEndereco] || '') : '',
-                    [idxSgmNome2 >= 0 ? (row[idxSgmNome2] || '') : '', idxSgmNivel >= 0 ? (row[idxSgmNivel] || '') : ''].filter(Boolean).join(' - ')
-                ]);
-            });
-
             dashboardData.dashboard4 = { headers: outputHeaders, rows: outputRows, filteredRows: outputRows };
 
-            const counts = { ok: okCount, nok: nokCount, total: outputRows.length };
-            renderSummary('summary4', counts, 'estoque');
+            renderSummary4(counts);
             renderHeaders('thead4', outputHeaders);
-            renderBody('tbody4', outputRows, 6); // status na coluna 6
+            renderBody('tbody4', outputRows, 6);
             renderInfo('info4', outputRows.length, outputRows.length);
         }
 
