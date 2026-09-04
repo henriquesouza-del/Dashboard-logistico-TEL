@@ -7,6 +7,7 @@
     <title>Dashboard - Controle de Estoque</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
         :root {
             --primary: #1e40af;
@@ -101,8 +102,16 @@
         .main-content { flex: 1; padding: 24px; }
         .dashboard-panel { display: none; }
         .dashboard-panel.active { display: block; }
-        .panel-header { margin-bottom: 20px; }
+        .panel-header { margin-bottom: 20px; display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
         .panel-header h2 { font-size: 22px; font-weight: 700; color: var(--text-primary); }
+        .download-btn {
+            display: inline-flex; align-items: center; gap: 8px;
+            background: var(--success); color: #fff; border: none;
+            padding: 9px 16px; border-radius: var(--radius-md);
+            font-size: 13px; font-weight: 600; cursor: pointer;
+            transition: opacity 0.2s, transform 0.2s;
+        }
+        .download-btn:hover { opacity: 0.9; transform: translateY(-1px); }
 
         .summary-cards {
             display: grid;
@@ -182,6 +191,29 @@
         .spinner { width: 40px; height: 40px; border: 4px solid var(--border); border-top-color: var(--primary); border-radius: 50%; animation: spin 0.8s linear infinite; }
         .loading-overlay p { font-size: 14px; color: var(--text-secondary); font-weight: 500; }
 
+        /* Dashboard 4: todas as colunas visíveis em 100% da tela */
+        #dashboard4 .table-container { overflow-x: hidden; }
+        #dashboard4 .data-table { table-layout: fixed; font-size: 12px; }
+        #dashboard4 .data-table th {
+            padding: 10px 6px; font-size: 10px; letter-spacing: 0.3px;
+            white-space: normal; word-wrap: break-word; overflow-wrap: break-word;
+        }
+        #dashboard4 .data-table td {
+            padding: 8px 6px; font-size: 12px;
+            white-space: normal; word-wrap: break-word; overflow-wrap: break-word;
+        }
+        #dashboard4 .data-table th:nth-child(1), #dashboard4 .data-table td:nth-child(1) { width: 14%; }
+        #dashboard4 .data-table th:nth-child(2), #dashboard4 .data-table td:nth-child(2) { width: 9%; }
+        #dashboard4 .data-table th:nth-child(3), #dashboard4 .data-table td:nth-child(3) { width: 9%; }
+        #dashboard4 .data-table th:nth-child(4), #dashboard4 .data-table td:nth-child(4) { width: 9%; }
+        #dashboard4 .data-table th:nth-child(5), #dashboard4 .data-table td:nth-child(5) { width: 10%; }
+        #dashboard4 .data-table th:nth-child(6), #dashboard4 .data-table td:nth-child(6) { width: 9%; }
+        #dashboard4 .data-table th:nth-child(7), #dashboard4 .data-table td:nth-child(7) { width: 6%; }
+        #dashboard4 .data-table th:nth-child(8), #dashboard4 .data-table td:nth-child(8) { width: 8%; }
+        #dashboard4 .data-table th:nth-child(9), #dashboard4 .data-table td:nth-child(9) { width: 6%; }
+        #dashboard4 .data-table th:nth-child(10), #dashboard4 .data-table td:nth-child(10) { width: 10%; }
+        #dashboard4 .data-table th:nth-child(11), #dashboard4 .data-table td:nth-child(11) { width: 10%; }
+
         @media (max-width: 768px) {
             .header { padding: 12px 16px; }
             .header h1 { font-size: 16px; }
@@ -240,7 +272,7 @@
 
         <main class="main-content">
             <section class="dashboard-panel active" id="dashboard1">
-                <div class="panel-header"><h2>Controle NF</h2></div>
+<div class="panel-header"><h2>Controle NF</h2><button class="download-btn" onclick="exportExcel('dashboard1','Controle_NF')"><i class="fas fa-file-excel"></i> Baixar Excel</button></div>
                 <div class="summary-cards" id="summary1"></div>
                 <div class="filter-container">
                     <i class="fas fa-search filter-icon"></i>
@@ -253,7 +285,7 @@
             </section>
 
             <section class="dashboard-panel" id="dashboard2">
-                <div class="panel-header"><h2>Controle SAP X SGM - Lote</h2></div>
+<div class="panel-header"><h2>Controle SAP X SGM - Lote</h2><button class="download-btn" onclick="exportExcel('dashboard2','SAP_X_SGM_Lote')"><i class="fas fa-file-excel"></i> Baixar Excel</button></div>
                 <div class="summary-cards" id="summary2"></div>
                 <div class="filter-container">
                     <i class="fas fa-search filter-icon"></i>
@@ -266,7 +298,7 @@
             </section>
 
             <section class="dashboard-panel" id="dashboard3">
-                <div class="panel-header"><h2>Controle Estoque SGM X SAP - Material CODE</h2></div>
+<div class="panel-header"><h2>Controle Estoque SGM X SAP - Material CODE</h2><button class="download-btn" onclick="exportExcel('dashboard3','SGM_X_SAP_Material_CODE')"><i class="fas fa-file-excel"></i> Baixar Excel</button></div>
                 <div class="summary-cards" id="summary3"></div>
                 <div class="filter-container">
                     <i class="fas fa-search filter-icon"></i>
@@ -279,7 +311,7 @@
             </section>
 
             <section class="dashboard-panel" id="dashboard4">
-                <div class="panel-header"><h2>SGM X AMERINODE - VIVO</h2></div>
+<div class="panel-header"><h2>SGM X AMERINODE - VIVO</h2><button class="download-btn" onclick="exportExcel('dashboard4','SGM_X_AMERINODE_VIVO')"><i class="fas fa-file-excel"></i> Baixar Excel</button></div>
                 <div class="summary-cards" id="summary4"></div>
                 <div class="filter-container">
                     <i class="fas fa-search filter-icon"></i>
@@ -376,6 +408,28 @@
             return -1;
         }
 
+        // Colunas que recebem a formatação colorida de OK/NOK (mesmo estilo do Status)
+        function getStatusColumns(dashboardId, headers) {
+            if (dashboardId === 'dashboard4') return [6, 7, 8]; // Status, SGM, Amerinode
+            const idx = findStatusColumn(headers);
+            return idx >= 0 ? [idx] : [];
+        }
+
+        function exportExcel(dashboardId, fileName) {
+            const data = dashboardData[dashboardId];
+            if (!data || !data.headers.length) return;
+            const rows = data.filteredRows && data.filteredRows.length ? data.filteredRows : data.rows;
+            const wsData = [data.headers, ...rows];
+            const ws = XLSX.utils.aoa_to_sheet(wsData);
+            ws['!cols'] = data.headers.map((h, i) => {
+                const maxLen = Math.max(String(h).length, ...rows.slice(0, 200).map(r => String(r[i] || '').length));
+                return { wch: Math.min(Math.max(maxLen + 2, 10), 45) };
+            });
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, 'Dados');
+            XLSX.writeFile(wb, `${fileName}.xlsx`);
+        }
+
         function findTipoColumn(headers) {
             for (let i = 0; i < headers.length; i++) {
                 if (headers[i].toLowerCase().includes('tipo')) return i;
@@ -440,8 +494,8 @@
             thead.innerHTML = html;
         }
 
-        function formatCell(value, colIndex, statusColIndex) {
-            if (colIndex === statusColIndex) {
+        function formatCell(value, colIndex, statusCols) {
+            if (statusCols.includes(colIndex)) {
                 const upper = value.toUpperCase().trim();
                 if (upper.includes('NOK')) return `<span class="status-nok">${value}</span>`;
                 else if (upper.includes('OK')) return `<span class="status-ok">${value}</span>`;
@@ -449,12 +503,12 @@
             return value;
         }
 
-        function renderBody(tbodyId, rows, statusColIndex) {
+        function renderBody(tbodyId, rows, statusCols) {
             const tbody = document.getElementById(tbodyId);
             let html = '';
             rows.forEach(row => {
                 html += '<tr>';
-                row.forEach((cell, index) => { html += `<td>${formatCell(cell, index, statusColIndex)}</td>`; });
+                row.forEach((cell, index) => { html += `<td>${formatCell(cell, index, statusCols)}</td>`; });
                 html += '</tr>';
             });
             tbody.innerHTML = html || '<tr><td colspan="100" style="text-align:center;padding:40px;color:var(--text-secondary);">Nenhum dado encontrado</td></tr>';
@@ -685,8 +739,8 @@
                     r.serial,
                     r.bem,
                     status,
-                    r.ame ? 'Sim' : 'Não',
-                    r.sgm ? 'Sim' : 'Não',
+                    r.ame ? 'OK' : 'NOK',
+                    r.sgm ? 'OK' : 'NOK',
                     r.sala,
                     r.estante
                 ]);
@@ -697,13 +751,13 @@
             const outputHeaders = [
                 'Produto',
                 'Partnumber',
-                'Cód SGM',
                 'Cód Amerinode',
+                'Cód SGM',
                 'Serial',
                 'Bem patrimonial',
                 'Status',
-                'Presente no SGM',
-                'Presente no Amerinode',
+                'SGM',
+                'Amerinode',
                 'Sala',
                 'Estante e nível'
             ];
@@ -712,7 +766,7 @@
 
             renderSummary4(counts);
             renderHeaders('thead4', outputHeaders);
-            renderBody('tbody4', outputRows, 6);
+            renderBody('tbody4', outputRows, [6, 7, 8]);
             renderInfo('info4', outputRows.length, outputRows.length);
         }
 
@@ -733,11 +787,12 @@
 
             const num = dashboardId.replace('dashboard', '');
             const statusColIndex = findStatusColumn(headers);
+            const statusCols = getStatusColumns(dashboardId, headers);
 
             const counts = countStatuses(rows, statusColIndex, summaryType);
             renderSummary(`summary${num}`, counts, summaryType);
             renderHeaders(`thead${num}`, headers);
-            renderBody(`tbody${num}`, rows, statusColIndex);
+            renderBody(`tbody${num}`, rows, statusCols);
             renderInfo(`info${num}`, rows.length, rows.length);
         }
 
@@ -748,11 +803,11 @@
             filterInput.addEventListener('input', (e) => {
                 const searchTerm = e.target.value;
                 const { headers, rows } = dashboardData[dashboardId];
-                const statusColIndex = findStatusColumn(headers);
+                const statusCols = getStatusColumns(dashboardId, headers);
                 const filteredRows = filterRows(rows, searchTerm);
 
                 dashboardData[dashboardId].filteredRows = filteredRows;
-                renderBody(`tbody${num}`, filteredRows, statusColIndex);
+                renderBody(`tbody${num}`, filteredRows, statusCols);
                 renderInfo(`info${num}`, filteredRows.length, rows.length);
             });
         }
