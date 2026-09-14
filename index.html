@@ -474,6 +474,31 @@
             return -1;
         }
 
+        function countStatuses4(rows) {
+            const counts = { ambos: 0, soSgm: 0, soAmerinode: 0, total: rows.length };
+            rows.forEach(row => {
+                const sgm = String(row[8] || '').toUpperCase().trim();
+                const ame = String(row[7] || '').toUpperCase().trim();
+                const temSgm = sgm === 'OK';
+                const temAme = ame === 'OK';
+                if (temSgm && temAme) counts.ambos++;
+                else if (temSgm) counts.soSgm++;
+                else counts.soAmerinode++;
+            });
+            return counts;
+        }
+
+        function updateSummary(dashboardId, rows) {
+            const meta = dashboardData[dashboardId] || {};
+            if (dashboardId === 'dashboard4') {
+                renderSummary4(countStatuses4(rows));
+                return;
+            }
+            const num = dashboardId.replace('dashboard', '');
+            const statusColIndex = findStatusColumn(meta.headers || []);
+            renderSummary(`summary${num}`, countStatuses(rows, statusColIndex, meta.summaryType), meta.summaryType);
+        }
+
         function countStatuses(rows, statusColIndex, type) {
             let okCount = 0;
             let nokCount = 0;
@@ -696,6 +721,7 @@
             const nomeIdx = findAllCols(sgmHeaders, ['Nome']);
             const iSgmEstante = nomeIdx.length > 1 ? nomeIdx[1] : -1;
             const iSgmNivel = findCol(sgmHeaders, ['Nível', 'Nivel']);
+            const iSgmLocal = findCol(sgmHeaders, ['Local']);
 
             // --- Índices Amerinode ---
             const iAmePart = findCol(amerinodeHeaders, ['Part Number', 'Partnumber']);
@@ -713,7 +739,7 @@
                         serial: serialOriginal,
                         produto: '', partSgm: '', partAme: '',
                         codSgm: '', codAme: '', bem: '',
-                        sala: '', estante: '',
+                        sala: '', endereco: '', estante: '',
                         sgm: false, ame: false
                     });
                 }
@@ -729,7 +755,8 @@
                 if (!r.partSgm) r.partSgm = cellOf(row, iSgmPart);
                 if (!r.codSgm) r.codSgm = cellOf(row, iSgmMaterial);
                 if (!r.bem) r.bem = cellOf(row, iSgmBem);
-                if (!r.sala) r.sala = cellOf(row, iSgmEndereco);
+                if (!r.endereco) r.endereco = cellOf(row, iSgmEndereco);
+                if (!r.sala) r.sala = cellOf(row, iSgmLocal);
                 if (!r.estante) {
                     r.estante = [cellOf(row, iSgmEstante), cellOf(row, iSgmNivel)].filter(Boolean).join(' - ');
                 }
@@ -744,6 +771,17 @@
                 if (!r.partAme) r.partAme = cellOf(row, iAmePart);
                 if (!r.codAme) r.codAme = cellOf(row, iAmeCod);
                 if (!r.bem) r.bem = cellOf(row, iAmeAtivo);
+            });
+
+            // --- PROCV da SALA (coluna "Local" da planilha SGM) pelo Serial ---
+            const salaPorSerial = new Map();
+            sgmRows.forEach(row => {
+                const key = normalizeSerial(cellOf(row, iSgmSerial));
+                const local = cellOf(row, iSgmLocal);
+                if (key && local && !salaPorSerial.has(key)) salaPorSerial.set(key, local);
+            });
+            registros.forEach((r, key) => {
+                if (!r.sala) r.sala = salaPorSerial.get(normalizeSerial(r.serial)) || salaPorSerial.get(key) || '';
             });
 
             // --- PROCV cruzado do Part Number por Cód. Produto / Material ---
@@ -779,6 +817,7 @@
                     r.ame ? 'OK' : 'NOK',
                     r.sgm ? 'OK' : 'NOK',
                     r.sala,
+                    r.endereco,
                     r.estante
                 ]);
             });
@@ -796,15 +835,20 @@
                 'SGM',
                 'Amerinode',
                 'Sala',
+                'Endereço',
                 'Alocado'
             ];
 
-            dashboardData.dashboard4 = { headers: outputHeaders, rows: outputRows, filteredRows: outputRows };
+            dashboardData.dashboard4 = { headers: outputHeaders, rows: outputRows, filteredRows: outputRows, summaryType: 'estoque' };
 
+            const termo4 = (document.getElementById('filter4') || {}).value || '';
             renderSummary4(counts);
             renderHeaders('thead4', outputHeaders);
-            renderBody('tbody4', outputRows, [6, 7, 8]);
-            renderInfo('info4', outputRows.length, outputRows.length);
+            const visiveis4 = filterRows(outputRows, termo4);
+            dashboardData.dashboard4.filteredRows = visiveis4;
+            updateSummary('dashboard4', visiveis4);
+            renderBody('tbody4', visiveis4, [6, 7, 8]);
+            renderInfo('info4', visiveis4.length, outputRows.length);
         }
 
         async function loadDashboard(dashboardId, url, summaryType) {
@@ -820,17 +864,20 @@
                 rows = t.rows;
             }
 
-            dashboardData[dashboardId] = { headers, rows, filteredRows: rows };
+            dashboardData[dashboardId] = { headers, rows, filteredRows: rows, summaryType };
 
             const num = dashboardId.replace('dashboard', '');
             const statusColIndex = findStatusColumn(headers);
             const statusCols = getStatusColumns(dashboardId, headers);
 
-            const counts = countStatuses(rows, statusColIndex, summaryType);
-            renderSummary(`summary${num}`, counts, summaryType);
+            const termo = (document.getElementById(`filter${num}`) || {}).value || '';
+            const visiveis = filterRows(rows, termo);
+            dashboardData[dashboardId].filteredRows = visiveis;
+
+            updateSummary(dashboardId, visiveis);
             renderHeaders(`thead${num}`, headers);
-            renderBody(`tbody${num}`, rows, statusCols);
-            renderInfo(`info${num}`, rows.length, rows.length);
+            renderBody(`tbody${num}`, visiveis, statusCols);
+            renderInfo(`info${num}`, visiveis.length, rows.length);
         }
 
         function setupFilter(dashboardId) {
@@ -844,6 +891,7 @@
                 const filteredRows = filterRows(rows, searchTerm);
 
                 dashboardData[dashboardId].filteredRows = filteredRows;
+                updateSummary(dashboardId, filteredRows);
                 renderBody(`tbody${num}`, filteredRows, statusCols);
                 renderInfo(`info${num}`, filteredRows.length, rows.length);
             });
